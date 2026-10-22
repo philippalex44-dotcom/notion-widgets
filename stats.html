@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading Performance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a; --panel: #121212;
+    --gold: #d4af37; --gold-light: #f3d77a; --muted: #6f6a5c;
+    --loss: #e5534b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); height: 100%; }
+  body {
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: clamp(4px, 1vw, 10px); gap: 6px;
+  }
+  .bar {
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: clamp(4px, 1.2vw, 12px);
+  }
+  .tile {
+    background: radial-gradient(120% 120% at 50% 0%, #1b1813 0%, var(--panel) 55%, #0c0c0c 100%);
+    border: 1px solid rgba(212, 175, 55, .35);
+    border-radius: clamp(8px, 1.6vw, 16px);
+    padding: clamp(8px, 1.6vw, 16px) clamp(4px, 1vw, 10px);
+    display: flex; flex-direction: column; align-items: center; gap: clamp(4px, .8vw, 8px);
+    position: relative; overflow: hidden;
+  }
+  .tile::after { /* feine Scanlines für LED-Look */
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px);
+  }
+  .label {
+    font-size: clamp(7px, 1.4vw, 10px); font-weight: 600; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--muted); white-space: nowrap;
+  }
+  .value {
+    font-family: "Orbitron", "Consolas", monospace; font-weight: 700;
+    font-size: clamp(12px, 3vw, 26px); font-variant-numeric: tabular-nums;
+    color: var(--gold-light);
+    text-shadow: 0 0 6px rgba(212, 175, 55, .55), 0 0 18px rgba(212, 175, 55, .25);
+    white-space: nowrap;
+  }
+  .value.neg { color: #ff8a80; text-shadow: 0 0 6px rgba(229, 83, 75, .55), 0 0 18px rgba(229, 83, 75, .25); }
+  .sub { font-size: clamp(7px, 1.3vw, 10px); color: #a39b84; font-variant-numeric: tabular-nums; }
+  .meter { width: 80%; height: 3px; background: #2a261c; border-radius: 2px; overflow: hidden; }
+  .meter > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8a6d1d, var(--gold-light)); transition: width .8s; }
+  .foot {
+    text-align: right; font-size: 9px; letter-spacing: .12em; color: var(--muted);
+    font-variant-numeric: tabular-nums; padding-right: 4px;
+  }
+  .msg { color: var(--gold); text-align: center; font-size: 13px; padding: 20px; }
+</style>
+</head>
+<body>
+<div class="bar" id="bar">
+  <div class="tile"><div class="label">Gesamt P&amp;L</div><div class="value" id="total">––</div><div class="sub" id="totalSub">&nbsp;</div></div>
+  <div class="tile"><div class="label">Monat</div><div class="value" id="month">––</div><div class="sub" id="monthSub">&nbsp;</div></div>
+  <div class="tile"><div class="label">Woche</div><div class="value" id="week">––</div><div class="sub" id="todaySub">&nbsp;</div></div>
+  <div class="tile"><div class="label">Win-Rate</div><div class="value" id="win">––</div><div class="meter"><i id="winBar"></i></div></div>
+  <div class="tile"><div class="label">Ø R-Multiple</div><div class="value" id="r">––</div><div class="sub">pro Trade</div></div>
+  <div class="tile"><div class="label">Trades</div><div class="value" id="n">––</div><div class="sub" id="openSub">&nbsp;</div></div>
+</div>
+<div class="foot" id="foot">LADE …</div>
+
+<script>
+  const eur = (v, sign = true) => (v == null ? "––" :
+    (sign && v > 0 ? "+" : "") + new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: Math.abs(v) >= 10000 ? 0 : 2 }).format(v));
+  const $ = (id) => document.getElementById(id);
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+  function setMoney(id, v) {
+    $(id).textContent = eur(v);
+    $(id).classList.toggle("neg", v < 0);
+  }
+
+  async function load() {
+    const keyStr = location.hash.slice(1);
+    if (!keyStr) { $("foot").textContent = "KEIN SCHLÜSSEL IN DER URL"; return; }
+    try {
+      const raw = Uint8Array.from(atob(keyStr.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+      const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+      const res = await fetch("stats.enc.json?t=" + Date.now(), { cache: "no-store" });
+      const { iv, ct } = await res.json();
+      const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(iv) }, key, b64(ct));
+      const s = JSON.parse(new TextDecoder().decode(plain));
+
+      setMoney("total", s.total);
+      setMoney("month", s.month);
+      setMoney("week", s.week);
+      $("totalSub").textContent = "alle Trades";
+      $("monthSub").textContent = new Date(s.date + "T12:00:00").toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+      $("todaySub").textContent = "Heute " + eur(s.today);
+      $("win").textContent = s.winRate == null ? "––" : Math.round(s.winRate) + " %";
+      $("winBar").style.width = (s.winRate ?? 0) + "%";
+      $("r").textContent = s.avgR == null ? "––" : (s.avgR > 0 ? "+" : "") + s.avgR.toFixed(2) + " R";
+      $("r").classList.toggle("neg", s.avgR < 0);
+      $("n").textContent = s.trades;
+      $("openSub").textContent = s.open ? s.open + " offen" : "alle geschlossen";
+      $("foot").textContent = "STAND " + new Date(s.updated).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+      $("foot").textContent = "DATEN NICHT LESBAR";
+      console.error(e);
+    }
+  }
+  load();
+  setInterval(load, 60000);
+</script>
+</body>
+</html>
