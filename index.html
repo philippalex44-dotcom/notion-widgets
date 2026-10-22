@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading Sessions – Weltuhren</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #121212;
+    --gold: #d4af37;
+    --gold-light: #f3d77a;
+    --gold-dark: #8a6d1d;
+    --muted: #6f6a5c;
+    --open: #3ddc84;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); height: 100%; }
+  body {
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px;
+  }
+  .bar {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .card {
+    background: radial-gradient(120% 120% at 50% 0%, #1b1813 0%, var(--panel) 55%, #0c0c0c 100%);
+    border: 1px solid rgba(212, 175, 55, .28);
+    border-radius: 16px;
+    padding: 12px 8px 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: border-color .3s, box-shadow .3s;
+  }
+  .card.open {
+    border-color: rgba(212, 175, 55, .75);
+    box-shadow: 0 0 18px rgba(212, 175, 55, .18), inset 0 0 12px rgba(212, 175, 55, .06);
+  }
+  svg { width: 100%; max-width: 120px; height: auto; display: block; }
+  .city {
+    font-size: 11px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--gold-light);
+  }
+  .time {
+    font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 500; color: #e8e2cf;
+  }
+  .status {
+    font-size: 9px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+    border: 1px solid rgba(111, 106, 92, .6); color: var(--muted);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .card.open .status { color: var(--open); border-color: rgba(61, 220, 132, .45); }
+  .card.open .status::before { box-shadow: 0 0 6px var(--open); animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  @media (max-width: 560px) {
+    .bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="bar" id="bar"></div>
+
+<script>
+  // Lokale Handelszeiten (Mo–Fr) je Finanzplatz
+  const CITIES = [
+    { name: "Sydney",    tz: "Australia/Sydney", open: [7, 0],  close: [16, 0] },
+    { name: "Tokyo",     tz: "Asia/Tokyo",       open: [9, 0],  close: [18, 0] },
+    { name: "Frankfurt", tz: "Europe/Berlin",    open: [8, 0],  close: [17, 30] },
+    { name: "London",    tz: "Europe/London",    open: [8, 0],  close: [17, 0] },
+    { name: "New York",  tz: "America/New_York", open: [8, 0],  close: [17, 0] },
+  ];
+
+  const NS = "http://www.w3.org/2000/svg";
+  const bar = document.getElementById("bar");
+
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function buildClock(i) {
+    const svg = el("svg", { viewBox: "0 0 200 200" });
+    const defs = el("defs", {}, svg);
+    const g = el("linearGradient", { id: "rim" + i, x1: "0", y1: "0", x2: "1", y2: "1" }, defs);
+    [["0%", "#f3d77a"], ["45%", "#d4af37"], ["100%", "#7a5c12"]].forEach(([o, c]) =>
+      el("stop", { offset: o, "stop-color": c }, g));
+    const f = el("radialGradient", { id: "face" + i, cx: "50%", cy: "40%", r: "65%" }, defs);
+    [["0%", "#1f1c15"], ["100%", "#060606"]].forEach(([o, c]) =>
+      el("stop", { offset: o, "stop-color": c }, f));
+
+    el("circle", { cx: 100, cy: 100, r: 96, fill: "url(#rim" + i + ")" }, svg);
+    el("circle", { cx: 100, cy: 100, r: 89, fill: "url(#face" + i + ")" }, svg);
+
+    for (let t = 0; t < 60; t++) {
+      const major = t % 5 === 0;
+      const a = t * 6 * Math.PI / 180;
+      const r1 = major ? 70 : 78, r2 = 83;
+      el("line", {
+        x1: 100 + r1 * Math.sin(a), y1: 100 - r1 * Math.cos(a),
+        x2: 100 + r2 * Math.sin(a), y2: 100 - r2 * Math.cos(a),
+        stroke: major ? "#d4af37" : "#4a4233",
+        "stroke-width": major ? (t % 15 === 0 ? 4.5 : 3) : 1.2,
+        "stroke-linecap": "round",
+      }, svg);
+    }
+
+    const hand = (w, len, tail, color) => el("line", {
+      x1: 100, y1: 100 + tail, x2: 100, y2: 100 - len,
+      stroke: color, "stroke-width": w, "stroke-linecap": "round",
+    }, svg);
+    const h = hand(6, 44, 10, "#f3d77a");
+    const m = hand(4, 64, 12, "#d4af37");
+    const s = hand(1.6, 72, 18, "#ffffff");
+    el("circle", { cx: 100, cy: 100, r: 6, fill: "#d4af37" }, svg);
+    el("circle", { cx: 100, cy: 100, r: 2.5, fill: "#0a0a0a" }, svg);
+    return { svg, h, m, s };
+  }
+
+  const items = CITIES.map((c, i) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const clock = buildClock(i);
+    card.appendChild(clock.svg);
+    const city = document.createElement("div"); city.className = "city"; city.textContent = c.name;
+    const time = document.createElement("div"); time.className = "time";
+    const status = document.createElement("div"); status.className = "status";
+    card.append(city, time, status);
+    bar.appendChild(card);
+    const fmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: c.tz, hour12: false, weekday: "short",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+    return { c, card, clock, time, status, fmt };
+  });
+
+  function tick() {
+    const now = new Date();
+    for (const it of items) {
+      const p = Object.fromEntries(it.fmt.formatToParts(now).map(x => [x.type, x.value]));
+      const H = +p.hour % 24, M = +p.minute, S = +p.second;
+      const sec = S + (now.getMilliseconds() / 1000);
+      it.clock.h.setAttribute("transform", `rotate(${(H % 12) * 30 + M * 0.5} 100 100)`);
+      it.clock.m.setAttribute("transform", `rotate(${M * 6 + S * 0.1} 100 100)`);
+      it.clock.s.setAttribute("transform", `rotate(${sec * 6} 100 100)`);
+      it.time.textContent = `${p.hour}:${p.minute}:${p.second}`;
+      const mins = H * 60 + M;
+      const o = it.c.open[0] * 60 + it.c.open[1], cl = it.c.close[0] * 60 + it.c.close[1];
+      const weekday = !["Sat", "Sun"].includes(p.weekday);
+      const open = weekday && mins >= o && mins < cl;
+      it.card.classList.toggle("open", open);
+      it.status.textContent = open ? "Open" : "Closed";
+    }
+  }
+  tick();
+  setInterval(tick, 250);
+</script>
+</body>
+</html>
