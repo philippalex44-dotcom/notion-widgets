@@ -20,7 +20,7 @@
     font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
     color: var(--gold);
     display: flex; align-items: center; justify-content: center;
-    padding: 10px;
+    padding: clamp(4px, 1vw, 10px);
   }
   .bar {
     width: 100%;
@@ -58,9 +58,12 @@
   .card.open .status { color: var(--open); border-color: rgba(61, 220, 132, .45); }
   .card.open .status::before { box-shadow: 0 0 6px var(--open); animation: pulse 2s infinite; }
   @keyframes pulse { 50% { opacity: .35; } }
-  @media (max-width: 560px) {
-    .bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  }
+  /* immer eine Reihe – bei schmaler Breite skaliert alles mit */
+  .bar { gap: clamp(4px, 1.2vw, 12px); }
+  .card { padding: clamp(6px, 1.2vw, 12px) clamp(3px, .8vw, 8px); border-radius: clamp(8px, 1.6vw, 16px); }
+  .city { font-size: clamp(7px, 1.6vw, 11px); letter-spacing: .12em; }
+  .time { font-size: clamp(8px, 1.9vw, 13px); }
+  .status { font-size: clamp(6px, 1.3vw, 9px); padding: 2px clamp(4px, 1vw, 8px); }
 </style>
 </head>
 <body>
