@@ -44,12 +44,12 @@ const trades = (await queryAll())
   .filter((p) => !p.in_trash && !p.archived)
   .map((p) => ({
     date: p.properties["Datum"]?.date?.start?.slice(0, 10) ?? null,
-    exit: num(p.properties["Ausstieg"]),
+    ausgang: p.properties["Ausgang"]?.select?.name ?? null,
     pnl: num(p.properties["P&L"]) ?? 0,
     r: num(p.properties["R-Multiple"]) ?? 0,
   }));
 
-const closed = trades.filter((t) => t.exit !== null);
+const closed = trades.filter((t) => t.ausgang && t.ausgang !== "⏳ Offen");
 const sum = (a) => a.reduce((s, t) => s + t.pnl, 0);
 const wins = closed.filter((t) => t.pnl > 0).length;
 
