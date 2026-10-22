@@ -44,7 +44,7 @@ const trades = (await queryAll())
   .filter((p) => !p.in_trash && !p.archived)
   .map((p) => ({
     date: p.properties["Datum"]?.date?.start?.slice(0, 10) ?? null,
-    exit: num(p.properties["Exit"]),
+    exit: num(p.properties["Ausstieg"]),
     pnl: num(p.properties["P&L"]) ?? 0,
     r: num(p.properties["R-Multiple"]) ?? 0,
   }));
