@@ -52,6 +52,9 @@ const trades = (await queryAll())
 const closed = trades.filter((t) => t.ausgang && t.ausgang !== "⏳ Offen");
 const sum = (a) => a.reduce((s, t) => s + t.pnl, 0);
 const wins = closed.filter((t) => t.pnl > 0).length;
+// Ohne Break Even: BE-Trades komplett herausrechnen
+const noBE = closed.filter((t) => t.ausgang !== "➖ Break Even");
+const winsNoBE = noBE.filter((t) => t.pnl > 0).length;
 
 const stats = {
   total: sum(closed),
@@ -59,6 +62,8 @@ const stats = {
   week: sum(closed.filter((t) => t.date && t.date >= monday && t.date <= today)),
   today: sum(closed.filter((t) => t.date === today)),
   winRate: closed.length ? (wins / closed.length) * 100 : null,
+  winRateNoBE: noBE.length ? (winsNoBE / noBE.length) * 100 : null,
+  beCount: closed.length - noBE.length,
   avgR: closed.length ? closed.reduce((s, t) => s + t.r, 0) / closed.length : null,
   trades: trades.length,
   open: trades.length - closed.length,

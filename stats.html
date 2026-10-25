@@ -50,6 +50,10 @@
   .sub { font-size: clamp(7px, 1.3vw, 10px); color: #a39b84; font-variant-numeric: tabular-nums; }
   .meter { width: 80%; height: 3px; background: #2a261c; border-radius: 2px; overflow: hidden; }
   .meter > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #8a6d1d, var(--gold-light)); transition: width .8s; }
+  .split { display: flex; width: 100%; justify-content: space-evenly; gap: 2px; }
+  .split > div { display: flex; flex-direction: column; align-items: center; gap: clamp(3px, .6vw, 6px); min-width: 0; flex: 1; }
+  .split .value { font-size: clamp(10px, 2.2vw, 20px); }
+  .split .meter { width: 85%; }
   .foot {
     text-align: right; font-size: 9px; letter-spacing: .12em; color: var(--muted);
     font-variant-numeric: tabular-nums; padding-right: 4px;
@@ -62,7 +66,12 @@
   <div class="tile"><div class="label">Gesamt P&amp;L</div><div class="value" id="total">––</div><div class="sub" id="totalSub">&nbsp;</div></div>
   <div class="tile"><div class="label">Monat</div><div class="value" id="month">––</div><div class="sub" id="monthSub">&nbsp;</div></div>
   <div class="tile"><div class="label">Woche</div><div class="value" id="week">––</div><div class="sub" id="todaySub">&nbsp;</div></div>
-  <div class="tile"><div class="label">Win-Rate</div><div class="value" id="win">––</div><div class="meter"><i id="winBar"></i></div></div>
+  <div class="tile"><div class="label">Win-Rate</div>
+    <div class="split">
+      <div><div class="value" id="win">––</div><div class="meter"><i id="winBar"></i></div><div class="sub">mit BE</div></div>
+      <div><div class="value" id="winNoBE">––</div><div class="meter"><i id="winBarNoBE"></i></div><div class="sub" id="noBESub">ohne BE</div></div>
+    </div>
+  </div>
   <div class="tile"><div class="label">Ø R-Multiple</div><div class="value" id="r">––</div><div class="sub">pro Trade</div></div>
   <div class="tile"><div class="label">Trades</div><div class="value" id="n">––</div><div class="sub" id="openSub">&nbsp;</div></div>
 </div>
@@ -98,6 +107,9 @@
       $("todaySub").textContent = "Heute " + eur(s.today);
       $("win").textContent = s.winRate == null ? "––" : Math.round(s.winRate) + " %";
       $("winBar").style.width = (s.winRate ?? 0) + "%";
+      $("winNoBE").textContent = s.winRateNoBE == null ? "––" : Math.round(s.winRateNoBE) + " %";
+      $("winBarNoBE").style.width = (s.winRateNoBE ?? 0) + "%";
+      $("noBESub").textContent = s.beCount ? "ohne " + s.beCount + " BE" : "ohne BE";
       $("r").textContent = s.avgR == null ? "––" : (s.avgR > 0 ? "+" : "") + s.avgR.toFixed(2) + " R";
       $("r").classList.toggle("neg", s.avgR < 0);
       $("n").textContent = s.trades;
